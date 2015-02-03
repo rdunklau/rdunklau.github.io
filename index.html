@@ -1,0 +1,25 @@
+---
+layout: default
+---
+
+<div class="home">
+
+  <div class="posts">
+    {% for post in paginator.posts %}
+      <div class="post">
+        <a href="{{ post.url | prepend: site.baseurl }}" class="post-link">
+          <p class="post-meta">{{ post.date | date: "%b %-d, %Y" }}</p>
+          <span class="post-meta">
+          <ul class="catlist">{% for cat in post.categories %}
+            <li><a href="{% category_url cat %}">{{cat}}</a></li>
+              {% endfor %}</ul>
+          </span><br>
+          <h3 class="h2 post-title">{{ post.title }}</h3>
+        </a>
+        <div class="post-summary">{{ post.excerpt }}</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% include pagination.html %}
+</div>
