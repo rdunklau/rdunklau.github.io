@@ -3,12 +3,12 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Ronan Dunklau</title>
+    <title>About me &#8211; Ronan Dunklau</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="PostgreSQL and related stuff">
     <meta name="author" content="Ronan Dunklau">
     
-    <link rel="canonical" href="http://rdunklau.github.io/">
+    <link rel="canonical" href="http://rdunklau.github.io/about/">
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/css/pixyll.css?201502031754" type="text/css">
@@ -24,9 +24,9 @@
     <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
     <meta property="og:locale" content="en_US">
     <meta property="og:type" content="article">
-    <meta property="og:title" content="Ronan Dunklau">
+    <meta property="og:title" content="About me">
     <meta property="og:description" content="PostgreSQL and related stuff">
-    <meta property="og:url" content="http://rdunklau.github.io/">
+    <meta property="og:url" content="http://rdunklau.github.io/about/">
     <meta property="og:site_name" content="Ronan Dunklau">
 
     <!-- Icons -->
@@ -76,44 +76,43 @@
 
     <div class="post p2 p-responsive wrap" role="main">
       <div class="measure">
-        <div class="home">
+        <div class="post">
+  <header class="post-header">
+    <h1 class="h2">About me</h1>
+  </header>
+  <article class="post-content">
+  <p>I’m Ronan Dunklau, a DBA at <a href="http://dalibo.com">Dalibo</a>, a French PostgreSQL support company.
+I’m mostly providing PostgreSQL support, but also consulting, training, and
+more.</p>
 
-  <div class="posts">
-    
-      <div class="post">
-        <a href="/postgresql/powa/pg_qualstats/2015/02/02/pg_qualstats_part1/" class="post-link">
-          <p class="post-meta">Feb 2, 2015</p>
-          <span class="post-meta">
-          <ul class="catlist">
-            <li><a href="/categories/postgresql">postgresql</a></li>
-              
-            <li><a href="/categories/powa">powa</a></li>
-              
-            <li><a href="/categories/pg_qualstats">pg_qualstats</a></li>
-              </ul>
-          </span><br>
-          <h3 class="h2 post-title">pg_qualstats - 1st part</h3>
-        </a>
-        <div class="post-summary"><p><a href="https://github.com/dalibo/pg_qualstats">pg_qualstats</a> is a new extension allowing you to collect statistics about what predicates are effectively executed on your PostgreSQL instance, sponsored by <a href="http://dalibo.github.io">Dalibo</a> This post is part of a series explaining pg_qualstats, and its integration with <a href="http://dalibo.github.io/powa">PoWA</a>, the <strong>PostgreSQL Workload Analyzer</strong>.</p>
+<p>I’m also an occasional PostgreSQL contributor, primarily around the SQL-MED
+standard support. Here are the patch I (co-)authored:</p>
 
-</div>
-      </div>
-    
-  </div>
+<ul>
+  <li>Use python’s Decimal for <a href="http://git.postgresql.org/gitweb/?p=postgresql.git;a=commit;h=7919398bac8bacd75ec5d763ce8b15ffaaa3e071">numerics in pl/python</a></li>
+  <li><a href="http://git.postgresql.org/gitweb/?p=postgresql.git;a=commit;h=7cbe57c34dec4860243e6d0f81738cfbb6e5d069">Triggers on foreign
+tables</a></li>
+  <li><a href="http://git.postgresql.org/gitweb/?p=postgresql.git;a=commit;h=59efda3e50ca4de6a9d5aa4491464e22b6329b1e">IMPORT FOREIGN
+SCHEMA</a> sql command support.</li>
+  <li>Better support for <a href="http://git.postgresql.org/gitweb/?p=postgresql.git;a=commit;h=8b6010b8350a1756cd85595705971df81b5ffc07">composite types in
+pl/python</a></li>
+</ul>
 
-  <div class="pagination clearfix mb1 mt4">
-  <div class="left">
-    
-      <span class="pagination-item disabled">Newer</span>
-    
-  </div>
-  <div class="right">
-    
-      <span class="pagination-item disabled">Older</span>
-    
-  </div>
-</div>
+<p>You may be interested in the following resources:</p>
 
+<ul>
+  <li><a href="http://dalibo.github.io:">Dalibo’s open-source projects</a></li>
+  <li><a href="https://github.com/kozea/multicorn">Multicorn</a>, a PostgreSQL extension allowing you to write foreign
+data wrappers in Python</li>
+  <li><a href="https://github.com/dalibo/pg_qualstats">pg_qualstats</a>, a PostgreSQL extension gathering statistics
+about where clause usage.</li>
+</ul>
+
+<p>This blog only reflects my personal opinions, and do not represent my employer
+views in any way.</p>
+
+
+  </article>
 </div>
 
       </div>
