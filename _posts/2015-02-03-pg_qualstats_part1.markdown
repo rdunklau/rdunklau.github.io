@@ -88,7 +88,6 @@ But lets try it, by creating a table and running a single query on it:
 {% highlight sql %}
 ro=# CREATE TABLE t1 AS (SELECT i FROM generate_series(1, 1000) as i);
 SELECT 1000
-ro=# CREATE TABLE t1 AS (SELECT i FROM generate_series(1, 1000) as i);^C
 ro=# select * from t1 where i = 1;
  i 
 ---
