@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Import foreign schema support in Multicorn &#8211; Ronan Dunklau</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="PostgreSQL and related stuff">
+    <meta name="author" content="Ronan Dunklau">
+    <meta name="keywords" content="postgresql, multicorn, python">
+    <link rel="canonical" href="http://rdunklau.github.io/postgresql/multicorn/python/2015/04/05/multicorn_import_foreign_schema/">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?201504151533" type="text/css">
+
+    <!-- Fonts -->
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+      <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Import foreign schema support in Multicorn">
+    <meta property="og:description" content="PostgreSQL and related stuff">
+    <meta property="og:url" content="http://rdunklau.github.io/postgresql/multicorn/python/2015/04/05/multicorn_import_foreign_schema/">
+    <meta property="og:site_name" content="Ronan Dunklau">
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="favicon-128x128.png" sizes="128x128">
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="favicon-32x32.png" sizes="32x32">
+</head>
+
+<body class="">
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://rdunklau.github.io" class="site-title">Ronan Dunklau</a>
+      <nav class="site-nav right">
+        <a href="/about/">About</a>
+
+      </nav>
+      <div class="clearfix"></div>
+      
+        <nav class="site-nav left">
+    
+      <a class="fa fa-github" href="https://github.com/rdunklau"></a>
+    
+    
+    <a class="fa fa-rss" href="/feed.xml"></a>
+    
+      <a class="fa fa-twitter" href="https://twitter.com/rdunklau"></a>
+    
+    
+    
+      <a class="fa fa-envelope" href="mailto:ronan@dunklau.fr"></a>
+    
+    
+    
+    
+    
+</nav>
+<div class="clearfix"></div>
+
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>Import foreign schema support in Multicorn</h1>
+  <span class="post-meta">Apr 5, 2015</span><br>
+  <span class="post-meta">postgresqlmulticornpython</span><br>
+  
+  <span class="post-meta small">
+  
+    3 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>Some of you may have noticed that support for the <strong>IMPORT FOREIGN SCHEMA</strong>
+statement has landed in the PostgreSQL source tree last july. This new command
+allows users to automatically map foreign tables to local ones.</p>
+
+<h2 id="use-case">Use-Case</h2>
+
+<p>Previously, if you wanted to use the postgres_fdw Foreign Data Wrapper
+to access data stored in a remote database you had to:</p>
+
+<ul>
+  <li>Create the extension</li>
+  <li>Create a server</li>
+  <li>Create a user mapping</li>
+  <li>For each remote table:
+    <ul>
+      <li>Create a <strong>FOREIGN TABLE</strong> which structures matches the remote one</li>
+    </ul>
+  </li>
+</ul>
+
+<p>This last step is tedious, and error prone: you have to match the column names,
+in the right order, with the right type.</p>
+
+<p>The <strong>IMPORT FOREIGN SCHEMA</strong> statements allows you to automatically create a
+foreign table object for each object available remotely.</p>
+
+<h2 id="multicorn-implementation">Multicorn implementation</h2>
+
+<p>The API has been implemented in Multicorn for a few months, lingering in its own
+branch.</p>
+
+<p>I just merged it back to the master branch, and this feature will land in an
+upcoming 1.2.0 release. In the meantime, test it !</p>
+
+<h1 id="the-api">The API</h1>
+
+<p>Its simple, like always with Multicorn. FDW just have to override the
+import_schema method:</p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">import_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">srv_options</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">restriction_type</span><span class="p">,</span>
+                    <span class="n">restricts</span><span class="p">)</span></code></pre></div>
+
+<p>This method just has to build a list of <a href="http://multicorn.readthedocs.org/en/latest/api.html#multicorn.TableDefinition">TableDefinition</a> objects:</p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">return</span> <span class="p">[</span>
+  <span class="n">TableDefinition</span><span class="p">(</span><span class="s">&quot;table_name&quot;</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+    <span class="n">columns</span><span class="o">=</span><span class="p">[</span>
+      <span class="n">ColumnDefinition</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s">&quot;column_name&quot;</span><span class="p">,</span>
+        <span class="n">type_name</span><span class="o">=</span><span class="s">&quot;integer&quot;</span><span class="p">)])]</span></code></pre></div>
+
+<p>And thats it !</p>
+
+<p>As for now, the only FDW shipped with Multicorn that does implement this API is
+the <a href="http://multicorn.readthedocs.org/en/latest/foreign-data-wrappers/sqlalchemyfdw.html#sqlalchemy-foreign-data-wrapper">sqlalchemyfdw</a>.</p>
+
+<h1 id="sqlalchemyfdw-test-run">SQLAlchemyFDW test run</h1>
+
+<p>So, with this API in mind, I conducted a small test: trying to import an Oracle
+schema as well as a MS-SQLServer schema:</p>
+
+<div class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">CREATE</span> <span class="n">EXTENSION</span> <span class="n">multicorn</span><span class="p">;</span>
+
+<span class="k">CREATE</span> <span class="n">SERVER</span> <span class="n">mssql_server</span> <span class="k">FOREIGN</span> <span class="k">DATA</span> <span class="n">WRAPPER</span> <span class="n">multicorn</span>
+<span class="k">OPTIONS</span> <span class="p">(</span>
+  <span class="n">wrapper</span> <span class="s1">&#39;multicorn.sqlalchemyfdw.SqlAlchemyFdw&#39;</span><span class="p">,</span>
+  <span class="n">drivername</span> <span class="s1">&#39;mssql+pymssql&#39;</span><span class="p">,</span>
+  <span class="k">host</span> <span class="s1">&#39;myhost&#39;</span><span class="p">,</span>
+  <span class="n">port</span> <span class="s1">&#39;1433&#39;</span><span class="p">,</span>
+  <span class="k">database</span> <span class="s1">&#39;testmulticorn&#39;</span><span class="p">);</span>
+
+<span class="k">CREATE</span> <span class="k">USER</span> <span class="n">MAPPING</span> <span class="k">FOR</span> <span class="n">ronan</span> <span class="n">SERVER</span> <span class="n">mssql_server</span> <span class="k">OPTIONS</span> <span class="p">(</span><span class="n">username</span> <span class="s1">&#39;user&#39;</span><span class="p">,</span> <span class="n">password</span> <span class="s1">&#39;password&#39;</span><span class="p">);</span>
+
+<span class="k">CREATE</span> <span class="k">SCHEMA</span> <span class="n">mssql</span><span class="p">;</span>
+
+<span class="n">IMPORT</span> <span class="k">FOREIGN</span> <span class="k">SCHEMA</span> <span class="n">dbo</span> <span class="k">FROM</span> <span class="n">SERVER</span> <span class="n">mssql_server</span> <span class="k">INTO</span> <span class="n">mssql</span> <span class="p">;</span>
+
+<span class="k">CREATE</span> <span class="n">SERVER</span> <span class="n">sqlite_server</span> <span class="k">FOREIGN</span> <span class="k">DATA</span> <span class="n">WRAPPER</span> <span class="n">multicorn</span>
+<span class="k">OPTIONS</span> <span class="p">(</span>
+  <span class="n">wrapper</span> <span class="s1">&#39;multicorn.sqlalchemyfdw.SqlAlchemyFdw&#39;</span><span class="p">,</span>
+  <span class="n">drivername</span> <span class="s1">&#39;sqlite&#39;</span><span class="p">,</span>
+  <span class="k">database</span> <span class="s1">&#39;/home/ronan/mydb.sqlite3&#39;</span><span class="p">);</span>
+
+<span class="k">CREATE</span> <span class="k">SCHEMA</span> <span class="n">sqlite</span><span class="p">;</span>
+
+<span class="n">IMPORT</span> <span class="k">FOREIGN</span> <span class="k">SCHEMA</span> <span class="n">main</span> <span class="k">FROM</span> <span class="n">SERVER</span> <span class="n">sqlite_server</span> <span class="k">INTO</span> <span class="n">sqlite</span> <span class="p">;</span>
+
+<span class="k">DELETE</span> <span class="k">FROM</span> <span class="n">mssql</span><span class="p">.</span><span class="n">t1</span><span class="p">;</span>
+<span class="k">DELETE</span> <span class="k">FROM</span> <span class="n">sqlite</span><span class="p">.</span><span class="n">t1</span><span class="p">;</span>
+
+<span class="k">INSERT</span> <span class="k">INTO</span> <span class="n">sqlite</span><span class="p">.</span><span class="n">t1</span> <span class="p">(</span><span class="n">id</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span> <span class="k">VALUES</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="k">DEFAULT</span><span class="p">);</span>
+<span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">sqlite</span><span class="p">.</span><span class="n">t1</span><span class="p">;</span>
+
+<span class="k">CREATE</span> <span class="n">SERVER</span> <span class="n">oracle_server</span> <span class="k">FOREIGN</span> <span class="k">DATA</span> <span class="n">WRAPPER</span> <span class="n">multicorn</span>
+<span class="k">OPTIONS</span> <span class="p">(</span>
+  <span class="n">wrapper</span> <span class="s1">&#39;multicorn.sqlalchemyfdw.SqlAlchemyFdw&#39;</span><span class="p">,</span>
+  <span class="n">drivername</span> <span class="s1">&#39;oracle&#39;</span><span class="p">,</span>
+  <span class="k">host</span> <span class="s1">&#39;another_host&#39;</span><span class="p">,</span>
+  <span class="k">database</span> <span class="s1">&#39;testmulticorn&#39;</span><span class="p">);</span>
+
+
+<span class="k">CREATE</span> <span class="k">USER</span> <span class="n">MAPPING</span> <span class="k">FOR</span> <span class="n">ronan</span> <span class="n">SERVER</span> <span class="n">oracle_server</span> <span class="k">OPTIONS</span> <span class="p">(</span><span class="n">username</span> <span class="s1">&#39;user&#39;</span><span class="p">,</span> <span class="n">password</span> <span class="s1">&#39;password&#39;</span><span class="p">);</span>
+
+<span class="k">CREATE</span> <span class="k">SCHEMA</span> <span class="n">oracle</span><span class="p">;</span>
+
+<span class="n">IMPORT</span> <span class="k">FOREIGN</span> <span class="k">SCHEMA</span> <span class="n">ronan</span> <span class="k">FROM</span> <span class="n">SERVER</span> <span class="n">oracle_server</span> <span class="k">INTO</span> <span class="n">oracle</span> <span class="p">;</span></code></pre></div>
+
+<p>And thats it ! Its sufficient to query tables from sqllite, oracle and MS-SQL
+from a single connection.</p>
+
+<p>Once again, feel free to test it and to report any bugs you may find along the
+way !</p>
+
+
+</article>
+
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+  <div class="p2 wrap">
+    <div class="measure mt1 center">
+      <small>
+        Theme: pixyll by <a href="http://johnotander.com">John Otander</a>,
+        availabe on <a href="https://github.com/johnotander/pixyll">Github</a>.
+        Favicon © Paul Davey <a
+                       href="http://creativecommons.org/licenses/by-nc-sa/4.0/">CC-BY-NC-SA</a>
+      </small>
+    </div>
+  </div>
+</footer>
+
+
+
+</body>
+</html>

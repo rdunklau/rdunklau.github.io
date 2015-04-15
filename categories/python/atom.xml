@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title type="text" xml:lang="en"></title>
-  <link type="application/atom+xml" href="/pg_qualstats/atom.xml" rel="self"/>
+  <link type="application/atom+xml" href="/python/atom.xml" rel="self"/>
   <link href="/"/>
   <updated>2015-04-15T15:33:19Z</updated>
-  <id>/pg_qualstats</id>
+  <id>/python</id>
   <author>
     <name></name>
     <email></email>
   </author>
   
   <entry>
-    <title>pg_qualstats - 1st part</title>
-    <link rel="alternate" type="text/html" href="/postgresql/powa/pg_qualstats/2015/02/02/pg_qualstats_part1/" />
-    <published>2015-02-02T18:03:29Z</published>
-    <updated>2015-02-02T18:03:29+01:00</updated>
-    <id>/postgresql/powa/pg_qualstats/2015/02/02/pg_qualstats_part1</id>
+    <title>Import foreign schema support in Multicorn</title>
+    <link rel="alternate" type="text/html" href="/postgresql/multicorn/python/2015/04/05/multicorn_import_foreign_schema/" />
+    <published>2015-04-05T17:32:29Z</published>
+    <updated>2015-04-05T17:32:29+02:00</updated>
+    <id>/postgresql/multicorn/python/2015/04/05/multicorn_import_foreign_schema</id>
     <content type="html"><![CDATA[ <p><a href="https://github.com/dalibo/pg_qualstats">pg_qualstats</a> is a new extension allowing you to collect statistics about what predicates are effectively executed on your PostgreSQL instance, sponsored by <a href="http://dalibo.github.io">Dalibo</a> This post is part of a series explaining pg_qualstats, and its integration with <a href="http://dalibo.github.io/powa">PoWA</a>, the <strong>PostgreSQL Workload Analyzer</strong>.</p>
 
 <h2 id="overview">Overview</h2>

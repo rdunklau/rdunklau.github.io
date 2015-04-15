@@ -3,7 +3,7 @@
   <title type="text" xml:lang="en"></title>
   <link type="application/atom+xml" href="/powa/atom.xml" rel="self"/>
   <link href="/"/>
-  <updated>2015-02-03T18:01:01Z</updated>
+  <updated>2015-04-15T15:33:19Z</updated>
   <id>/powa</id>
   <author>
     <name></name>
@@ -89,7 +89,6 @@ create both extensions:</p>
 
 <p><div class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="n">ro</span><span class="o">=#</span> <span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">t1</span> <span class="k">AS</span> <span class="p">(</span><span class="k">SELECT</span> <span class="n">i</span> <span class="k">FROM</span> <span class="n">generate_series</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span> <span class="k">as</span> <span class="n">i</span><span class="p">);</span>
 <span class="k">SELECT</span> <span class="mi">1000</span>
-<span class="n">ro</span><span class="o">=#</span> <span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">t1</span> <span class="k">AS</span> <span class="p">(</span><span class="k">SELECT</span> <span class="n">i</span> <span class="k">FROM</span> <span class="n">generate_series</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span> <span class="k">as</span> <span class="n">i</span><span class="p">);</span><span class="o">^</span><span class="k">C</span>
 <span class="n">ro</span><span class="o">=#</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">where</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
  <span class="n">i</span> 
 <span class="err">—</span>
