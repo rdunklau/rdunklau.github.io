@@ -20,7 +20,7 @@ title : Atom Feed
     <published>{{ post.date | date: "%Y-%m-%dT%H:%M:%SZ" }}</published>
     <updated>{{ post.date | date_to_xmlschema }}</updated>
     <id>{{ site.baseurl }}{{ post.id }}</id>
-    <content type="html"><![CDATA[ {% render_post {{post.id}} %} ]]></content>
+    <content type="html"><![CDATA[ {% render_post post %} ]]></content>
   </entry>
   {% endfor %}
 </feed>

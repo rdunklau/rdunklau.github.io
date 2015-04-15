@@ -9,10 +9,10 @@ class PostContent < Liquid::Tag
     @post = post
   end
   def render(context)
-    post = context.registers[:site].posts[@post.to_i]
+    post = context[@post.strip]
     site = context.registers[:site]
     converter = site.converters.find { |c| c.class == Jekyll::Converters::Markdown }
-    partial = Liquid::Template.parse(converter.convert(post.content))
+    partial = Liquid::Template.parse(converter.convert(post['content']))
     partial.render!(context)
   end
 end
