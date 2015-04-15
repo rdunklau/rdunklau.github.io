@@ -3,7 +3,7 @@
   <title type="text" xml:lang="en"></title>
   <link type="application/atom+xml" href="/postgresql/atom.xml" rel="self"/>
   <link href="/"/>
-  <updated>2015-04-15T15:33:19Z</updated>
+  <updated>2015-04-15T16:21:06Z</updated>
   <id>/postgresql</id>
   <author>
     <name></name>
@@ -16,298 +16,118 @@
     <published>2015-04-05T17:32:29Z</published>
     <updated>2015-04-05T17:32:29+02:00</updated>
     <id>/postgresql/multicorn/python/2015/04/05/multicorn_import_foreign_schema</id>
-    <content type="html"><![CDATA[ <p><a href="https://github.com/dalibo/pg_qualstats">pg_qualstats</a> is a new extension allowing you to collect statistics about what predicates are effectively executed on your PostgreSQL instance, sponsored by <a href="http://dalibo.github.io">Dalibo</a> This post is part of a series explaining pg_qualstats, and its integration with <a href="http://dalibo.github.io/powa">PoWA</a>, the <strong>PostgreSQL Workload Analyzer</strong>.</p>
+    <content type="html"><![CDATA[ <p>Some of you may have noticed that support for the <strong>IMPORT FOREIGN SCHEMA</strong>
+statement has landed in the PostgreSQL source tree last july. This new command
+allows users to automatically map foreign tables to local ones.</p>
 
-<h2 id="overview">Overview</h2>
+<h2 id="use-case">Use-Case</h2>
 
-<p>The goal of this extension is to allow the DBA to answer to some specific
-questions, whose answers are quite hard to come by:</p>
-
-<ul>
-  <li>what is the set of queries using this column ?</li>
-  <li>what are the values this where clause is most often using ?</li>
-  <li>do I have some significant skew in the distribution of the number of returned rows if use some value instead of one another ?</li>
-  <li>which columns are often used together in a <code>WHERE</code> clause ?</li>
-</ul>
-
-<p>Traditionnaly, if you want to answers those questions, you have to:</p>
+<p>Previously, if you wanted to use the postgres_fdw Foreign Data Wrapper
+to access data stored in a remote database you had to:</p>
 
 <ul>
-  <li>parse the logs, and hope that the application is not using the
-<a href="http://www.postgresql.org/docs/current/static/ddl-schemas.html#DDL-SCHEMAS-PATH"><code>search_path</code></a> extensively. If it does, you may have trouble identifiying a set of queries using the same table, and the same columns. In fact, it will probably get really hard to do even if the whole database schema is stored in <code>public</code>.</li>
-  <li>have an intimate knowledge of the database schema, and the various
-applications that use it. You may acquire this knowledge if you work in close
-collaboration with the developers, but it will sadly be incomplete and quickly
-obsoloted.</li>
-</ul>
-
-<h2 id="installation">Installation</h2>
-
-<p>You will need PostgreSQL 9.4 for this, and its header files. The installation
-process is similar to the one of <a href="http://www.postgresql.org/docs/current/static/pgstatstatements.html">pg_stat_statements</a>.</p>
-
-<p>Using <code>pg_stat_statements</code> is not required, but useful if you want to link the
-predicates back to the queries they appeared into.</p>
-
-<p>To install <a href="https://github.com/dalibo/pg_qualstats">pg_qualstats</a>, just grab it from pgxn:</p>
-
-<p><div class="highlight"><pre><code class="language-bash" data-lang="bash">wget http://pgxn.org/dist/pg_qualstats/
-<span class="nb">cd </span>pg_qualstats
-make <span class="p">&amp;</span>amp<span class="p">;&amp;</span>amp<span class="p">;</span> sudo make install</code></pre></div></p>
-
-<p>Or using the pgxnclient:</p>
-
-<p><div class="highlight"><pre><code class="language-bash" data-lang="bash">sudo pgxnclient install pg_qualstats</code></pre></div></p>
-
-<p>Then, you’ll have to configure Postgresql, by putting <code>pg_qualstats</code> into your
-<code>shared_preload_libraries</code> parameter:</p>
-
-<figure>
-<figcaption>postgresql.conf</figcaption>
-<div class="highlight"><pre><code class="language-ini" data-lang="ini"><span class="na">shared_preload_libraries</span> <span class="o">=</span> <span class="s">&#39;pg_stat_statements,pg_qualstats&#39;</span></code></pre></div>
-</figure>
-
-<p>Then, don’t forget to restart your PostgreSQL server, and you should be able to
-create both extensions:</p>
-
-<p><div class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="n">psql</span> <span class="p">(</span><span class="mi">9</span><span class="p">.</span><span class="mi">4</span><span class="p">.</span><span class="mi">0</span><span class="p">)</span>
-<span class="k">Type</span> <span class="err">“</span><span class="n">help</span><span class="err">”</span> <span class="k">for</span> <span class="n">help</span><span class="p">.</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
-
-<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">ro</span><span class="o">=#</span> <span class="k">CREATE</span> <span class="n">EXTENSION</span> <span class="n">pg_stat_statements</span><span class="p">;</span>
-<span class="k">CREATE</span> <span class="n">EXTENSION</span>
-<span class="n">ro</span><span class="o">=#</span> <span class="k">CREATE</span> <span class="n">EXTENSION</span> <span class="n">pg_qualstats</span> <span class="p">;</span>
-<span class="k">CREATE</span> <span class="n">EXTENSION</span></code></pre></div></p>
-
-<p>And that’s it, you should be good to go !</p>
-
-<h2 id="starting-slowly">Starting slowly…</h2>
-
-<p>pg_qualstats provides several functions and views, the basic one being named…
-<code>pg_qualstats</code>, obvisously :)</p>
-
-<p>But lets try it, by creating a table and running a single query on it:</p>
-
-<p><div class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="n">ro</span><span class="o">=#</span> <span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">t1</span> <span class="k">AS</span> <span class="p">(</span><span class="k">SELECT</span> <span class="n">i</span> <span class="k">FROM</span> <span class="n">generate_series</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span> <span class="k">as</span> <span class="n">i</span><span class="p">);</span>
-<span class="k">SELECT</span> <span class="mi">1000</span>
-<span class="n">ro</span><span class="o">=#</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">where</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
- <span class="n">i</span> 
-<span class="err">—</span>
- <span class="mi">1</span>
-<span class="p">(</span><span class="mi">1</span> <span class="n">ligne</span><span class="p">)</span>
-<span class="n">ro</span><span class="o">=#</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">pg_qualstats</span><span class="p">;</span>
-<span class="o">-</span><span class="p">[</span> <span class="n">RECORD</span> <span class="mi">1</span> <span class="p">]</span><span class="err">—–</span><span class="o">+</span><span class="err">———–</span>
-<span class="n">userid</span>            <span class="o">|</span> <span class="mi">16384</span>
-<span class="n">dbid</span>              <span class="o">|</span> <span class="mi">17757</span>
-<span class="n">lrelid</span>            <span class="o">|</span> <span class="mi">848199</span>
-<span class="n">lattnum</span>           <span class="o">|</span> <span class="mi">1</span>
-<span class="n">opno</span>              <span class="o">|</span> <span class="mi">96</span>
-<span class="n">rrelid</span>            <span class="o">|</span> <span class="err">∅</span>
-<span class="n">rattnum</span>           <span class="o">|</span> <span class="err">∅</span>
-<span class="n">qualid</span>            <span class="o">|</span> <span class="err">∅</span>
-<span class="n">uniquequalid</span>      <span class="o">|</span> <span class="err">∅</span>
-<span class="n">qualnodeid</span>        <span class="o">|</span> <span class="mi">3411282766</span>
-<span class="n">uniquequalnodeid</span>  <span class="o">|</span> <span class="mi">2846790230</span>
-<span class="k">count</span>             <span class="o">|</span> <span class="mi">1000</span>
-<span class="n">nbfiltered</span>        <span class="o">|</span> <span class="mi">999</span>
-<span class="n">constant_position</span> <span class="o">|</span> <span class="mi">27</span>
-<span class="n">queryid</span>           <span class="o">|</span> <span class="mi">1578034309</span>
-<span class="n">constvalue</span>        <span class="o">|</span> <span class="mi">1</span><span class="p">::</span><span class="nb">integer</span>
-<span class="n">eval_type</span>         <span class="o">|</span> <span class="n">f</span></code></pre></div></p>
-
-<p>So, what does it tell us ?</p>
-
-<ul>
-  <li><strong><code>userid</code></strong> contains the executing <strong>user OID</strong>, here the OID for <code>ro</code></li>
-  <li><strong><code>dbid</code></strong> contains the <strong>database OID</strong>, here the OID for database <code>ro</code></li>
-  <li><strong><code>lreflid</code></strong> contains the <strong>OID of the relation</strong> on the left side of the
-expression. This can be joined against <code>pg_class</code> to get the table name</li>
-  <li><strong><code>lattnum</code></strong> is the <strong>attribute number</strong>, to be joined against <code>pg_attribute</code></li>
-  <li><strong><code>opno</code></strong> is the <strong>operator oid</strong>, to be joined against <code>pg_operator</code>.</li>
-  <li><strong><code>eval_type</code></strong> is the context in which this predicate was executed. <strong><code>f</code></strong>
-means it as executed as a filter, during a scan. <strong><code>i</code></strong> would have indicated
-that it was executed as an index clause, during an index scan</li>
-  <li><strong><code>count</code></strong> is the number of time this predicate was executed. Since it was
-executed as part of a <code>seqscan</code>, it has to be executed one time per row.</li>
-  <li><strong><code>nbfiltered</code></strong> is the number of row that didn’t make it past this predicate.
-That is, we executed this predicate 1000 time and discarded 999 rows, giving
-us a <strong><code>filter_ratio</code></strong>, or selectivity, of 1‰.</li>
-  <li><strong><code>constvalue</code></strong> is the actual value of the constant on the right-hand-side of
-the predicate, here <strong>1</strong>.</li>
-</ul>
-
-<p>The <code>pg_qualstats_pretty</code> view can give you a more human-friendly way of
-visualising this, and aggregates by predicate:</p>
-
-<p><div class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="n">ro</span><span class="o">=#</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">pg_qualstats_pretty</span> <span class="p">;</span>
-<span class="o">-</span><span class="p">[</span> <span class="n">RECORD</span> <span class="mi">1</span> <span class="p">]</span><span class="o">+</span><span class="err">————</span><span class="o">-</span>
-<span class="n">left_schema</span>  <span class="o">|</span> <span class="k">public</span>
-<span class="n">left_table</span>   <span class="o">|</span> <span class="n">t1</span>
-<span class="n">left_column</span>  <span class="o">|</span> <span class="n">i</span>
-<span class="k">operator</span>     <span class="o">|</span> <span class="n">pg_catalog</span><span class="p">.</span><span class="o">=</span>
-<span class="n">right_schema</span> <span class="o">|</span> <span class="err">∅</span>
-<span class="n">right_table</span>  <span class="o">|</span> <span class="err">∅</span>
-<span class="n">right_column</span> <span class="o">|</span> <span class="err">∅</span>
-<span class="k">count</span>        <span class="o">|</span> <span class="mi">1000</span>
-<span class="n">nbfiltered</span>   <span class="o">|</span> <span class="mi">999</span></code></pre></div></p>
-
-<p>But let’s try to run some more queries on this sample table:</p>
-
-<p><div class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="n">ro</span><span class="o">=#</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">where</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
-<span class="n">ro</span><span class="o">=#</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">pg_qualstats</span> <span class="p">;</span>
-<span class="o">-</span><span class="p">[</span> <span class="n">RECORD</span> <span class="mi">1</span> <span class="p">]</span><span class="err">—–</span><span class="o">+</span><span class="err">———–</span>
-<span class="n">userid</span>            <span class="o">|</span> <span class="mi">16384</span>
-<span class="n">dbid</span>              <span class="o">|</span> <span class="mi">17757</span>
-<span class="n">lrelid</span>            <span class="o">|</span> <span class="mi">848199</span>
-<span class="n">lattnum</span>           <span class="o">|</span> <span class="mi">1</span>
-<span class="n">opno</span>              <span class="o">|</span> <span class="mi">96</span>
-<span class="n">rrelid</span>            <span class="o">|</span> <span class="err">∅</span>
-<span class="n">rattnum</span>           <span class="o">|</span> <span class="err">∅</span>
-<span class="n">qualid</span>            <span class="o">|</span> <span class="err">∅</span>
-<span class="n">uniquequalid</span>      <span class="o">|</span> <span class="err">∅</span>
-<span class="n">qualnodeid</span>        <span class="o">|</span> <span class="mi">3411282766</span>
-<span class="n">uniquequalnodeid</span>  <span class="o">|</span> <span class="mi">2846790230</span>
-<span class="k">count</span>             <span class="o">|</span> <span class="mi">1000</span>
-<span class="n">nbfiltered</span>        <span class="o">|</span> <span class="mi">999</span>
-<span class="n">constant_position</span> <span class="o">|</span> <span class="mi">27</span>
-<span class="n">queryid</span>           <span class="o">|</span> <span class="mi">1578034309</span>
-<span class="n">constvalue</span>        <span class="o">|</span> <span class="mi">1</span><span class="p">::</span><span class="nb">integer</span>
-<span class="n">eval_type</span>         <span class="o">|</span> <span class="n">f</span>
-<span class="o">-</span><span class="p">[</span> <span class="n">RECORD</span> <span class="mi">2</span> <span class="p">]</span><span class="err">—–</span><span class="o">+</span><span class="err">———–</span>
-<span class="n">userid</span>            <span class="o">|</span> <span class="mi">16384</span>
-<span class="n">dbid</span>              <span class="o">|</span> <span class="mi">17757</span>
-<span class="n">lrelid</span>            <span class="o">|</span> <span class="mi">848199</span>
-<span class="n">lattnum</span>           <span class="o">|</span> <span class="mi">1</span>
-<span class="n">opno</span>              <span class="o">|</span> <span class="mi">96</span>
-<span class="n">rrelid</span>            <span class="o">|</span> <span class="err">∅</span>
-<span class="n">rattnum</span>           <span class="o">|</span> <span class="err">∅</span>
-<span class="n">qualid</span>            <span class="o">|</span> <span class="err">∅</span>
-<span class="n">uniquequalid</span>      <span class="o">|</span> <span class="err">∅</span>
-<span class="n">qualnodeid</span>        <span class="o">|</span> <span class="mi">3411282766</span>
-<span class="n">uniquequalnodeid</span>  <span class="o">|</span> <span class="mi">954012517</span>
-<span class="k">count</span>             <span class="o">|</span> <span class="mi">1000</span>
-<span class="n">nbfiltered</span>        <span class="o">|</span> <span class="mi">999</span>
-<span class="n">constant_position</span> <span class="o">|</span> <span class="mi">27</span>
-<span class="n">queryid</span>           <span class="o">|</span> <span class="mi">1578034309</span>
-<span class="n">constvalue</span>        <span class="o">|</span> <span class="mi">2</span><span class="p">::</span><span class="nb">integer</span>
-<span class="n">eval_type</span>         <span class="o">|</span> <span class="n">f</span></code></pre></div></p>
-
-<p>So, after querying this table with another constant value, this gives us a new
-row for this new value.</p>
-
-<p>But how do we tie them together ?</p>
-
-<ul>
-  <li><strong><code>qualnodeid</code></strong> is an identifier for one normalized particular part of the
-predicate, that is, excluding any constant. Here, both our conditions are
-using the same attribute, and the same operator, hence the same qualnodeid.
-This qualnodeid uniquely identifies the <strong><code>t1.i = ?</code></strong> predicate.</li>
-  <li><strong><code>uniquequalnodeid</code></strong> is an identifier for one particular part of the
-predicate, taking constants into account. The <strong>2846790230</strong> value uniquely
-identifies the <strong><code>t1.i = 1</code></strong> clause.</li>
-</ul>
-
-<h2 id="using-anded-clauses">Using AND’ed clauses</h2>
-
-<p>Albeit pg_qualstats doesn’t support <strong>OR’ed</strong> clause yet, there is support for
-<strong>AND’ed</strong> clauses.</p>
-
-<p>Let’s see:</p>
-
-<p><div class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="n">ro</span><span class="o">=#</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">where</span> <span class="n">i</span> <span class="o">&amp;</span><span class="n">gt</span><span class="p">;</span> <span class="mi">10</span> <span class="k">and</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
- <span class="n">i</span> 
-<span class="err">—</span>
-<span class="p">(</span><span class="mi">0</span> <span class="k">rows</span><span class="p">)</span>
-<span class="n">ro</span><span class="o">=#</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">pg_qualstats</span><span class="p">;</span>
-<span class="o">-</span><span class="p">[</span> <span class="n">RECORD</span> <span class="mi">1</span> <span class="p">]</span><span class="err">—–</span><span class="o">+</span><span class="err">————</span>
-<span class="n">userid</span>            <span class="o">|</span> <span class="mi">16384</span>
-<span class="n">dbid</span>              <span class="o">|</span> <span class="mi">17757</span>
-<span class="n">lrelid</span>            <span class="o">|</span> <span class="mi">848199</span>
-<span class="n">lattnum</span>           <span class="o">|</span> <span class="mi">1</span>
-<span class="n">opno</span>              <span class="o">|</span> <span class="mi">521</span>
-<span class="n">rrelid</span>            <span class="o">|</span> <span class="err">∅</span>
-<span class="n">rattnum</span>           <span class="o">|</span> <span class="err">∅</span>
-<span class="n">qualid</span>            <span class="o">|</span> <span class="mi">1548643620</span>
-<span class="n">uniquequalid</span>      <span class="o">|</span> <span class="mi">1684386194</span>
-<span class="n">qualnodeid</span>        <span class="o">|</span> <span class="mi">584158233</span>
-<span class="n">uniquequalnodeid</span>  <span class="o">|</span> <span class="mi">2042184354</span>
-<span class="k">count</span>             <span class="o">|</span> <span class="mi">1000</span>
-<span class="n">nbfiltered</span>        <span class="o">|</span> <span class="mi">20</span>
-<span class="n">constant_position</span> <span class="o">|</span> <span class="mi">27</span>
-<span class="n">queryid</span>           <span class="o">|</span> <span class="mi">3640911477</span>
-<span class="n">constvalue</span>        <span class="o">|</span> <span class="mi">10</span><span class="p">::</span><span class="nb">integer</span>
-<span class="n">eval_type</span>         <span class="o">|</span> <span class="n">f</span>
-<span class="o">-</span><span class="p">[</span> <span class="n">RECORD</span> <span class="mi">2</span> <span class="p">]</span><span class="err">—–</span><span class="o">+</span><span class="err">————</span>
-<span class="n">userid</span>            <span class="o">|</span> <span class="mi">16384</span>
-<span class="n">dbid</span>              <span class="o">|</span> <span class="mi">17757</span>
-<span class="n">lrelid</span>            <span class="o">|</span> <span class="mi">848199</span>
-<span class="n">lattnum</span>           <span class="o">|</span> <span class="mi">1</span>
-<span class="n">opno</span>              <span class="o">|</span> <span class="mi">521</span>
-<span class="n">rrelid</span>            <span class="o">|</span> <span class="err">∅</span>
-<span class="n">rattnum</span>           <span class="o">|</span> <span class="err">∅</span>
-<span class="n">qualid</span>            <span class="o">|</span> <span class="mi">1548643620</span>
-<span class="n">uniquequalid</span>      <span class="o">|</span> <span class="mi">1684386194</span>
-<span class="n">qualnodeid</span>        <span class="o">|</span> <span class="mi">584158233</span>
-<span class="n">uniquequalnodeid</span>  <span class="o">|</span> <span class="mi">1357724498</span>
-<span class="k">count</span>             <span class="o">|</span> <span class="mi">1000</span>
-<span class="n">nbfiltered</span>        <span class="o">|</span> <span class="mi">20</span>
-<span class="n">constant_position</span> <span class="o">|</span> <span class="mi">38</span>
-<span class="n">queryid</span>           <span class="o">|</span> <span class="mi">3640911477</span>
-<span class="n">constvalue</span>        <span class="o">|</span> <span class="mi">20</span><span class="p">::</span><span class="nb">integer</span>
-<span class="n">eval_type</span>         <span class="o">|</span> <span class="n">f</span></code></pre></div></p>
-
-<p>The interesting colums here are:</p>
-
-<ul>
-  <li><strong><code>qualid</code></strong>, which identifies the whole predicate. That is, the value of
-<strong>1548643620</strong> uniquely identifies the whole <code>t1.i &gt; ? AND t1.i = ?</code> clause</li>
-  <li><strong><code>uniquequalid</code></strong> serves the same purpose as uniquequalnodeid, that is it
-identifies the specific <code>t1.id &gt; 10 AND t1.id = 1</code> clause.</li>
-</ul>
-
-<p>This can be used to aggregate by whole clauses, and will allow you to answer
-specific question as:</p>
-
-<ul>
-  <li>
-    <p>which queries are using this predicate ?
-<div class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="n">ro</span><span class="o">=#</span> <span class="k">select</span> <span class="n">query</span><span class="p">,</span> <span class="k">sum</span><span class="p">(</span><span class="n">q1</span><span class="p">.</span><span class="k">count</span><span class="p">)</span> <span class="o">/</span> <span class="n">calls</span> <span class="k">AS</span> <span class="n">exec_by_query</span>
-<span class="k">FROM</span> <span class="n">pg_qualstats</span> <span class="n">q1</span>
-<span class="k">JOIN</span> <span class="n">pg_stat_statements</span> <span class="k">USING</span> <span class="p">(</span><span class="n">queryid</span><span class="p">)</span>
-<span class="k">where</span> <span class="n">q1</span><span class="p">.</span><span class="n">lrelid</span> <span class="o">=</span> <span class="err">‘</span><span class="n">t1</span><span class="err">’</span><span class="p">::</span><span class="n">regclass</span> <span class="k">AND</span> <span class="n">q1</span><span class="p">.</span><span class="n">lattnum</span> <span class="o">=</span> <span class="mi">1</span>
-<span class="k">AND</span> <span class="n">q1</span><span class="p">.</span><span class="n">opno</span> <span class="o">=</span> <span class="err">‘</span><span class="o">=</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span><span class="nb">int</span><span class="p">)</span><span class="err">’</span><span class="p">::</span><span class="n">regoperator</span>
-<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">query</span><span class="p">,</span> <span class="n">calls</span>
-<span class="p">;</span>
-                <span class="n">query</span>                  <span class="o">|</span>     <span class="n">exec_by_query</span>   <span class="o">&lt;</span><span class="n">br</span> <span class="o">/&gt;</span>
-<span class="err">—————————————–</span><span class="o">+</span><span class="err">———————–</span>
- <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">where</span> <span class="n">i</span> <span class="o">&amp;</span><span class="n">gt</span><span class="p">;</span> <span class="o">?</span> <span class="k">and</span> <span class="n">i</span> <span class="o">=</span> <span class="o">?</span><span class="p">;</span> <span class="o">|</span> <span class="mi">1000</span><span class="p">.</span><span class="mi">0000000000000000</span>
- <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">where</span> <span class="n">i</span> <span class="o">=</span> <span class="o">?</span><span class="p">;</span>           <span class="o">|</span> <span class="mi">1000</span><span class="p">.</span><span class="mi">0000000000000000</span></code></pre></div></p>
-  </li>
-  <li>
-    <p>What value is the most queried ?
-<div class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="n">ro</span><span class="o">=#</span> <span class="k">select</span> <span class="n">constvalue</span><span class="p">,</span>
-     <span class="k">count</span><span class="p">,</span>
-     <span class="k">count</span> <span class="o">/</span> <span class="k">sum</span><span class="p">(</span><span class="k">count</span><span class="p">)</span> <span class="n">OVER</span> <span class="p">()</span> <span class="k">as</span> <span class="n">percent</span>
-<span class="k">FROM</span> <span class="p">(</span>
-<span class="k">SELECT</span> <span class="n">constvalue</span><span class="p">,</span>
-      <span class="k">sum</span><span class="p">(</span><span class="k">count</span><span class="p">)</span> <span class="k">as</span> <span class="k">count</span>
-<span class="k">FROM</span> <span class="n">pg_qualstats</span> <span class="n">q1</span>
-<span class="k">WHERE</span> <span class="n">q1</span><span class="p">.</span><span class="n">lrelid</span> <span class="o">=</span> <span class="err">‘</span><span class="n">t1</span><span class="err">’</span><span class="p">::</span><span class="n">regclass</span>
-      <span class="k">AND</span> <span class="n">q1</span><span class="p">.</span><span class="n">lattnum</span> <span class="o">=</span> <span class="mi">1</span>
-      <span class="k">AND</span> <span class="n">q1</span><span class="p">.</span><span class="n">opno</span> <span class="o">=</span> <span class="err">‘</span><span class="o">=</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span><span class="nb">int</span><span class="p">)</span><span class="err">’</span><span class="p">::</span><span class="n">regoperator</span>
-<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">constvalue</span>
-<span class="p">)</span> <span class="n">totals</span>
-<span class="k">ORDER</span> <span class="k">BY</span> <span class="k">count</span> <span class="k">DESC</span><span class="p">;</span>
- <span class="n">constvalue</span> <span class="o">|</span> <span class="k">count</span> <span class="o">|</span>        <span class="n">percent</span>       <span class="o">&lt;</span><span class="n">br</span> <span class="o">/&gt;</span>
-<span class="err">————</span><span class="o">+</span><span class="err">——</span><span class="o">-+</span><span class="err">————————</span>
- <span class="mi">1</span><span class="p">::</span><span class="nb">integer</span> <span class="o">|</span>  <span class="mi">8000</span> <span class="o">|</span> <span class="mi">0</span><span class="p">.</span><span class="mi">63636363636363636364</span>
- <span class="mi">2</span><span class="p">::</span><span class="nb">integer</span> <span class="o">|</span>  <span class="mi">2000</span> <span class="o">|</span> <span class="mi">0</span><span class="p">.</span><span class="mi">18181818181818181818</span>
- <span class="mi">3</span><span class="p">::</span><span class="nb">integer</span> <span class="o">|</span>  <span class="mi">1000</span> <span class="o">|</span> <span class="mi">0</span><span class="p">.</span><span class="mi">09090909090909090909</span></code></pre></div></p>
+  <li>Create the extension</li>
+  <li>Create a server</li>
+  <li>Create a user mapping</li>
+  <li>For each remote table:
+    <ul>
+      <li>Create a <strong>FOREIGN TABLE</strong> which structures matches the remote one</li>
+    </ul>
   </li>
 </ul>
 
-<p>That’s all for today !</p>
+<p>This last step is tedious, and error prone: you have to match the column names,
+in the right order, with the right type.</p>
 
-<p>In a following blog post, we’ll see how to use <a href="http://dalibo.github.io/powa">PoWA</a> to make the most sense of this extension.</p>
+<p>The <strong>IMPORT FOREIGN SCHEMA</strong> statements allows you to automatically create a
+foreign table object for each object available remotely.</p>
+
+<h2 id="multicorn-implementation">Multicorn implementation</h2>
+
+<p>The API has been implemented in Multicorn for a few months, lingering in its own
+branch.</p>
+
+<p>I just merged it back to the master branch, and this feature will land in an
+upcoming 1.2.0 release. In the meantime, test it !</p>
+
+<h1 id="the-api">The API</h1>
+
+<p>Its simple, like always with Multicorn. FDW just have to override the
+import_schema method:</p>
+
+<p><div class="highlight"><pre><code class="language-python" data-lang="python"><span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">import_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">srv_options</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">restriction_type</span><span class="p">,</span>
+                    <span class="n">restricts</span><span class="p">)</span></code></pre></div></p>
+
+<p>This method just has to build a list of <a href="http://multicorn.readthedocs.org/en/latest/api.html#multicorn.TableDefinition">TableDefinition</a> objects:</p>
+
+<p><div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">return</span> <span class="p">[</span>
+  <span class="n">TableDefinition</span><span class="p">(</span><span class="err">“</span><span class="n">table_name</span><span class="err">”</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+    <span class="n">columns</span><span class="o">=</span><span class="p">[</span>
+      <span class="n">ColumnDefinition</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="err">”</span><span class="n">column_name</span><span class="err">”</span><span class="p">,</span>
+        <span class="n">type_name</span><span class="o">=</span><span class="err">”</span><span class="n">integer</span><span class="err">”</span><span class="p">)])]</span></code></pre></div></p>
+
+<p>And thats it !</p>
+
+<p>As for now, the only FDW shipped with Multicorn that does implement this API is
+the <a href="http://multicorn.readthedocs.org/en/latest/foreign-data-wrappers/sqlalchemyfdw.html#sqlalchemy-foreign-data-wrapper">sqlalchemyfdw</a>.</p>
+
+<h1 id="sqlalchemyfdw-test-run">SQLAlchemyFDW test run</h1>
+
+<p>So, with this API in mind, I conducted a small test: trying to import an Oracle
+schema as well as a MS-SQLServer schema:</p>
+
+<p><div class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">CREATE</span> <span class="n">EXTENSION</span> <span class="n">multicorn</span><span class="p">;</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">CREATE</span> <span class="n">SERVER</span> <span class="n">mssql_server</span> <span class="k">FOREIGN</span> <span class="k">DATA</span> <span class="n">WRAPPER</span> <span class="n">multicorn</span>
+<span class="k">OPTIONS</span> <span class="p">(</span>
+  <span class="n">wrapper</span> <span class="err">‘</span><span class="n">multicorn</span><span class="p">.</span><span class="n">sqlalchemyfdw</span><span class="p">.</span><span class="n">SqlAlchemyFdw</span><span class="err">’</span><span class="p">,</span>
+  <span class="n">drivername</span> <span class="err">‘</span><span class="n">mssql</span><span class="o">+</span><span class="n">pymssql</span><span class="err">’</span><span class="p">,</span>
+  <span class="k">host</span> <span class="err">‘</span><span class="n">myhost</span><span class="err">’</span><span class="p">,</span>
+  <span class="n">port</span> <span class="err">‘</span><span class="mi">1433</span><span class="err">’</span><span class="p">,</span>
+  <span class="k">database</span> <span class="err">‘</span><span class="n">testmulticorn</span><span class="err">’</span><span class="p">);</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">CREATE</span> <span class="k">USER</span> <span class="n">MAPPING</span> <span class="k">FOR</span> <span class="n">ronan</span> <span class="n">SERVER</span> <span class="n">mssql_server</span> <span class="k">OPTIONS</span> <span class="p">(</span><span class="n">username</span> <span class="err">‘</span><span class="k">user</span><span class="err">’</span><span class="p">,</span> <span class="n">password</span> <span class="err">‘</span><span class="n">password</span><span class="err">’</span><span class="p">);</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">CREATE</span> <span class="k">SCHEMA</span> <span class="n">mssql</span><span class="p">;</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">IMPORT</span> <span class="k">FOREIGN</span> <span class="k">SCHEMA</span> <span class="n">dbo</span> <span class="k">FROM</span> <span class="n">SERVER</span> <span class="n">mssql_server</span> <span class="k">INTO</span> <span class="n">mssql</span> <span class="p">;</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">CREATE</span> <span class="n">SERVER</span> <span class="n">sqlite_server</span> <span class="k">FOREIGN</span> <span class="k">DATA</span> <span class="n">WRAPPER</span> <span class="n">multicorn</span>
+<span class="k">OPTIONS</span> <span class="p">(</span>
+  <span class="n">wrapper</span> <span class="err">‘</span><span class="n">multicorn</span><span class="p">.</span><span class="n">sqlalchemyfdw</span><span class="p">.</span><span class="n">SqlAlchemyFdw</span><span class="err">’</span><span class="p">,</span>
+  <span class="n">drivername</span> <span class="err">‘</span><span class="n">sqlite</span><span class="err">’</span><span class="p">,</span>
+  <span class="k">database</span> <span class="err">‘</span><span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">ronan</span><span class="o">/</span><span class="n">mydb</span><span class="p">.</span><span class="n">sqlite3</span><span class="err">’</span><span class="p">);</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">CREATE</span> <span class="k">SCHEMA</span> <span class="n">sqlite</span><span class="p">;</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">IMPORT</span> <span class="k">FOREIGN</span> <span class="k">SCHEMA</span> <span class="n">main</span> <span class="k">FROM</span> <span class="n">SERVER</span> <span class="n">sqlite_server</span> <span class="k">INTO</span> <span class="n">sqlite</span> <span class="p">;</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">DELETE</span> <span class="k">FROM</span> <span class="n">mssql</span><span class="p">.</span><span class="n">t1</span><span class="p">;</span>
+<span class="k">DELETE</span> <span class="k">FROM</span> <span class="n">sqlite</span><span class="p">.</span><span class="n">t1</span><span class="p">;</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">INSERT</span> <span class="k">INTO</span> <span class="n">sqlite</span><span class="p">.</span><span class="n">t1</span> <span class="p">(</span><span class="n">id</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span> <span class="k">VALUES</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="k">DEFAULT</span><span class="p">);</span>
+<span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">sqlite</span><span class="p">.</span><span class="n">t1</span><span class="p">;</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">CREATE</span> <span class="n">SERVER</span> <span class="n">oracle_server</span> <span class="k">FOREIGN</span> <span class="k">DATA</span> <span class="n">WRAPPER</span> <span class="n">multicorn</span>
+<span class="k">OPTIONS</span> <span class="p">(</span>
+  <span class="n">wrapper</span> <span class="err">‘</span><span class="n">multicorn</span><span class="p">.</span><span class="n">sqlalchemyfdw</span><span class="p">.</span><span class="n">SqlAlchemyFdw</span><span class="err">’</span><span class="p">,</span>
+  <span class="n">drivername</span> <span class="err">‘</span><span class="n">oracle</span><span class="err">’</span><span class="p">,</span>
+  <span class="k">host</span> <span class="err">‘</span><span class="n">another_host</span><span class="err">’</span><span class="p">,</span>
+  <span class="k">database</span> <span class="err">‘</span><span class="n">testmulticorn</span><span class="err">’</span><span class="p">);</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">CREATE</span> <span class="k">USER</span> <span class="n">MAPPING</span> <span class="k">FOR</span> <span class="n">ronan</span> <span class="n">SERVER</span> <span class="n">oracle_server</span> <span class="k">OPTIONS</span> <span class="p">(</span><span class="n">username</span> <span class="err">‘</span><span class="k">user</span><span class="err">’</span><span class="p">,</span> <span class="n">password</span> <span class="err">‘</span><span class="n">password</span><span class="err">’</span><span class="p">);</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">CREATE</span> <span class="k">SCHEMA</span> <span class="n">oracle</span><span class="p">;</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">IMPORT</span> <span class="k">FOREIGN</span> <span class="k">SCHEMA</span> <span class="n">ronan</span> <span class="k">FROM</span> <span class="n">SERVER</span> <span class="n">oracle_server</span> <span class="k">INTO</span> <span class="n">oracle</span> <span class="p">;</span></code></pre></div></p>
+
+<p>And thats it ! Its sufficient to query tables from sqllite, oracle and MS-SQL
+from a single connection.</p>
+
+<p>Once again, feel free to test it and to report any bugs you may find along the
+way !</p>
 
  ]]></content>
   </entry>
